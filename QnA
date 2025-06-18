@@ -1,3 +1,13 @@
+TOC:
+1. Penetration Testing & Red Teaming & Ethical Hacking
+2. Vulnerability & Threat Landscape
+3. General Security Principles
+4. Web Application Security
+5. Network Security
+6. Behavioral and Situational Questions
+
+---
+
 1. Penetration Testing & Red Teaming & Ethical Hacking
 
 1.1 What are the phases of a penetration test? OR 
@@ -716,6 +726,72 @@ If the server echoes this back into the page without escaping, the JavaScript ex
 | Scanning       | `nikto`, `nuclei`, `zap`, `burp`, `whatweb`         |
 | Exploitation   | `sqlmap`, `wfuzz`, `hydra`, `xsser`, custom scripts |
 | Analysis       | Burp Suite, ZAP, browser dev tools, proxy logs      |
+
+-
+
+4.5 How would you test for authentication and authorization flaws?
+
+Testing for **authentication** and **authorization** flaws involves simulating how an attacker might **bypass identity and access controls**. Here's a structured and practical approach:
+
+---
+
+## 🔐 **Authentication Testing (Who you are)**
+
+### 🎯 Goals:
+
+* Bypass login
+* Bruteforce credentials
+* Bypass 2FA
+* Exploit poor session management
+
+### ✅ Checklist:
+
+| Test                         | Description                                                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Default/Weak Credentials** | Try `admin:admin`, `test:test`, etc. on login portals                                                     |
+| **Bruteforce**               | Use tools like **Hydra**, **Burp Intruder**, or **WFuzz** to test password strength                       |
+| **Account Lockout**          | Check if bruteforce is rate-limited or causes lockouts                                                    |
+| **2FA/OTP Bypass**           | Look for logic flaws where 2FA is not enforced after login or can be skipped                              |
+| **Password Reset Abuse**     | Try to reset other users' passwords using email manipulation, predictable tokens, or insecure reset flows |
+| **Session Fixation/Reuse**   | Inspect session tokens (e.g., cookies, JWTs) — reuse old tokens after logout                              |
+| **Token Manipulation**       | Modify `JWT`, cookies, or session tokens to impersonate another user                                      |
+
+---
+
+## 🔒 **Authorization Testing (What you’re allowed to do)**
+
+### 🎯 Goals:
+
+* Access data or actions meant for other users (Horizontal/Vertical privilege escalation)
+
+### ✅ Checklist:
+
+| Test                                        | Description                                                                                        |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **IDOR (Insecure Direct Object Reference)** | Change user IDs, file names, resource IDs in URLs or requests (e.g., `/user/123` to `/user/124`)   |
+| **Forced Browsing**                         | Access hidden pages or APIs directly (e.g., `/admin`) without being an admin                       |
+| **Method/Role Manipulation**                | Modify request parameters like `role=admin`, `isAdmin=true`, or HTTP methods (GET→PUT)             |
+| **Broken Access Control**                   | Attempt actions like creating/deleting users or viewing restricted data as a lower-privileged user |
+| **Multi-User Testing**                      | Log in as two different roles (e.g., user and admin) and test boundaries between them              |
+
+---
+
+### 🔧 Tools to Assist:
+
+* **Burp Suite** – Intercept and manipulate requests
+* **Postman** or **cURL** – Test APIs directly
+* **JWT.io** – Decode and modify tokens
+* **Autorize (Burp Extension)** – Test authorization bypass automatically
+* **OWASP ZAP** – Includes auth fuzzing and session testing tools
+
+---
+
+## 🧠 Key Difference:
+
+| Category           | Focus                                             | Example Attack                     |
+| ------------------ | ------------------------------------------------- | ---------------------------------- |
+| **Authentication** | Is the user really who they claim to be?          | Login bypass, password reset flaws |
+| **Authorization**  | Can the user access only what they’re allowed to? | IDOR, privilege escalation         |
 
 --
 
