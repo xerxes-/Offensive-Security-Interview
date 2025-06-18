@@ -5,6 +5,7 @@ TOC:
 4. Web Application Security
 5. Network Security
 6. Behavioral and Situational Questions
+7. Post-exploitation Techniques
 
 ---
 
@@ -928,6 +929,392 @@ Testing for **authentication** and **authorization** flaws involves simulating h
 | ------------------ | ------------------------------------------------- | ---------------------------------- |
 | **Authentication** | Is the user really who they claim to be?          | Login bypass, password reset flaws |
 | **Authorization**  | Can the user access only what they’re allowed to? | IDOR, privilege escalation         |
+
+-
+
+4.6 What is the difference between Authentication Bypass and IDOR (Insecure Direct Object Reference)?
+
+## 🆚 Authentication Bypass vs. IDOR
+
+| Feature                | **Authentication Bypass**                                            | **IDOR (Insecure Direct Object Reference)**                                                  |
+| ---------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Definition**         | Gaining unauthorized access to an application **without logging in** | Accessing objects (like files or user data) by modifying references **after authentication** |
+| **Target**             | Entire authentication mechanism (login)                              | Specific resources (e.g., files, user IDs, records)                                          |
+| **Example Scenario**   | Logging in without valid credentials                                 | Accessing another user's invoice by changing `invoice_id=123` to `124`                       |
+| **Typical Cause**      | Weak login logic, flawed session handling                            | Lack of access control checks on user-input object IDs                                       |
+| **Is Login Required?** | ❌ No                                                                | ✅ Yes (you’re already logged in)                                                          |
+| **Impact**             | Full access as another user or admin                                 | Unauthorized access to specific data or actions                                              |
+| **Example URL**        | `POST /login` with valid username and empty password lets you in     | `GET /user/profile?user_id=456` shows another user's profile                                 |
+
+---
+
+## 🔐 Example of Each
+
+### 🔸 Authentication Bypass Example:
+
+```http
+POST /login HTTP/1.1
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": ""
+}
+```
+
+* Flawed logic lets user in without verifying password.
+
+---
+
+### 🔸 IDOR Example:
+
+```http
+GET /documents/1234
+```
+
+* Logged-in user changes `1234` to `1235` and accesses **another user's file** without authorization.
+
+---
+
+## ✅ Summary
+
+> * **Authentication Bypass** skips the login barrier entirely.
+> * **IDOR** occurs **after login** when the app fails to properly check **who should access what**.
+
+Both are critical, but **IDOR is an authorization flaw**, not an authentication one.
+
+-
+
+4.7 How would you test for CSRF (Cross-Site Request Forgery)?
+
+To test for **CSRF (Cross-Site Request Forgery)**, your goal is to determine whether **state-changing requests** (like changing email, password, deleting an account, etc.) can be triggered from 
+**another origin** without user interaction or protection mechanisms.
+
+---
+
+## 🧪 **Steps to Test for CSRF**
+
+### 🔹 1. **Identify a State-Changing Action**
+
+Look for actions like:
+
+* Change password/email
+* Add/delete user
+* Transfer funds
+* Submit a form (e.g., POST to `/update-profile`)
+
+These are **high-value targets** for CSRF.
+
+---
+
+### 🔹 2. **Check for CSRF Protections**
+
+Inspect the request in Burp Suite or browser dev tools:
+
+* Is there a **CSRF token** in the form or headers?
+* Is the token tied to the session?
+* Is it **validated server-side**?
+
+---
+
+### 🔹 3. **Create a Malicious HTML Page (PoC)**
+
+Craft a simple page to replay the request silently.
+
+#### Example (POST request to change email):
+
+```html
+<form action="http://victim.com/change-email" method="POST">
+  <input type="hidden" name="email" value="attacker@example.com" />
+  <input type="submit" value="Click me" />
+</form>
+```
+
+Make the form auto-submit to simulate attack:
+
+```html
+<script>document.forms[0].submit();</script>
+```
+
+* Host this file on your own server and have a logged-in victim visit it.
+
+---
+
+### 🔹 4. **Observe Behavior**
+
+If the server processes the request **without a valid CSRF token or origin check**, the request is **vulnerable**.
+
+---
+
+## 🛡️ **What Defenses Should Be in Place?**
+
+| Protection                        | How It Works                                            |
+| --------------------------------- | ------------------------------------------------------- |
+| **CSRF Tokens**                   | Unique token in form/session, checked server-side       |
+| **SameSite Cookies**              | Prevents cookies from being sent in cross-site requests |
+| **Referer / Origin Header Check** | Validates request source                                |
+| **Double Submit Cookie**          | Token is stored in both cookie and form; must match     |
+
+---
+
+## ✅ Summary
+
+> To test for CSRF, you **mimic a malicious cross-site request** and check if the app **executes it without validating its origin or CSRF token**. 
+If it works, the app is **vulnerable to CSRF**.
+
+-
+
+4.8 Explain XXE (XML External Entity) attacks.
+
+**XXE (XML External Entity)** is a vulnerability that occurs when an application **parses XML input** without securely configuring the XML parser. It allows an attacker to:
+
+* Read local files,
+* Perform SSRF (Server-Side Request Forgery),
+* Conduct denial of service,
+* Or, in some cases, execute remote code.
+
+---
+
+### 🧠 How It Works:
+
+XML supports defining **external entities** using `<!ENTITY>` declarations. 
+If parsing isn't restricted, an attacker can inject their own entities that reference local or remote resources.
+
+---
+
+### 🔓 **Basic Exploit Example (File Disclosure)**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<user>
+  <name>&xxe;</name>
+</user>
+```
+
+If the XML parser processes `&xxe;`, it includes the contents of `/etc/passwd` in the response.
+
+---
+
+### 🔁 **Variants of XXE**
+
+| Type                    | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| **File Disclosure**     | Read sensitive files from the server                    |
+| **SSRF**                | Force server to make requests to internal systems       |
+| **DoS**                 | Use recursive entities to crash the parser              |
+| **Out-of-Band (Blind)** | Exfiltrate data via external servers (e.g., DTD + HTTP) |
+
+---
+
+### ☠️ **Billion Laughs Attack (DoS Example)**
+
+```xml
+<!DOCTYPE lolz [
+  <!ENTITY a "lol">
+  <!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;">
+  <!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;">
+]>
+<lolz>&c;</lolz>
+```
+
+This causes **exponential expansion** and crashes the server's parser.
+
+---
+
+### 🔐 **How to Prevent XXE**
+
+| Defense                      | Description                                                    |
+| ---------------------------- | -------------------------------------------------------------- |
+| **Disable DTDs**             | Prevents definition of external entities                       |
+| **Use Secure Parsers**       | Most modern parsers have secure configs (`lxml`, `defusedxml`) |
+| **Whitelist Allowed Inputs** | Validate and sanitize XML input before parsing                 |
+| **Use JSON instead of XML**  | JSON does not support external entities                        |
+| **Limit Network Access**     | Prevent SSRF by isolating internal services                    |
+
+---
+
+### ✅ Summary
+
+> **XXE** is a serious vulnerability in XML parsers that can lead to **data theft, internal network access, or DoS**. It's prevented by **disabling entity processing** and **properly configuring your XML parser**.
+
+-
+
+4.9 What is JWT (JSON Web Token) exploitation?
+
+**JWT exploitation** refers to abusing weaknesses in how JSON Web Tokens are **created, signed, or validated** to **bypass authentication**, **escalate privileges**, or **forgery**.
+
+JWTs are commonly used for **authentication and authorization**. A typical JWT has 3 parts:
+
+```
+<Header>.<Payload>.<Signature>
+```
+
+Example:
+`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIn0.fk3Xdp1...`
+
+---
+
+## 🔍 JWT Structure
+
+1. **Header**: Algorithm and token type
+   Example:
+
+   ```json
+   {
+     "alg": "HS256",
+     "typ": "JWT"
+   }
+   ```
+
+2. **Payload**: Claims like user info, role, etc.
+   Example:
+
+   ```json
+   {
+     "username": "admin",
+     "role": "admin"
+   }
+   ```
+
+3. **Signature**: Verifies integrity, usually:
+
+   ```
+   HMACSHA256(base64url(header) + "." + base64url(payload), secret)
+   ```
+
+---
+
+## 💣 Common JWT Exploitation Techniques
+
+| Technique                        | Description                                                                                     |
+| -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **None Algorithm Attack**        | Set `"alg": "none"` and remove signature to bypass verification (vulnerable libs only)          |
+| **Key Brute Forcing**            | Crack weak secrets used in HMAC (e.g., `HS256`) using tools like `jwt-cracker`                  |
+| **Algorithm Confusion**          | Change algorithm from RS256 (asymmetric) to HS256 (symmetric) and sign with server's public key |
+| **Claim Tampering**              | Modify roles or user ID in payload and re-sign if secret is known                               |
+| **Token Replay**                 | Capture and reuse a valid token within its expiration time                                      |
+| **Expired Tokens**               | Some APIs may accept expired tokens if validation is weak                                       |
+| **Lack of Signature Validation** | Server doesn’t validate signature — full token forgery                                          |
+
+---
+
+## 🛠️ Tools for JWT Exploitation
+
+* 🔓 `jwt.io` — Decode & inspect
+* 🐍 `jwt-tool` — Exploit tester (`--exploit none`, brute-force, etc.)
+* 🧠 `jwt-cracker` — Dictionary attack on JWT secrets
+* 🔐 `Hashcat` — Crack JWT secrets (`mode 16500`)
+* 🛠️ `Burp Suite` — Intercept and modify JWT tokens in real-time
+
+---
+
+## ✅ Example: "alg":"none" Attack
+
+If server improperly allows "none":
+
+```json
+{
+  "alg": "none",
+  "typ": "JWT"
+}
+```
+
+Resulting token:
+
+```
+<Header>.<Payload>.
+```
+
+➡️ Server skips signature check → authentication bypass.
+
+---
+
+## 🔐 How to Prevent JWT Exploitation
+
+| Best Practice                        | Description                                           |
+| ------------------------------------ | ----------------------------------------------------- |
+| ✅ **Enforce Signature Verification** | Never accept unsigned JWTs                            |
+| ✅ **Use Strong Secrets**             | Avoid guessable secrets like "123456"                 |
+| ✅ **Use RS256 Instead of HS256**     | Public/private key pair prevents key misuse           |
+| ✅ **Validate Expiry (`exp`)**        | Enforce token expiration                              |
+| ✅ **Use Libraries Securely**         | Keep JWT libraries up to date and configured properly |
+| ✅ **Rotate Secrets**                 | Regularly rotate keys to limit exposure               |
+
+---
+
+## ✅ Summary
+
+> JWT exploitation involves tampering with JWTs to bypass authentication or gain unauthorized access. Misconfigurations like `"alg": "none"` or weak secrets are common entry points.
+
+-
+
+4.10 How do you test for API security flaws (e.g., OAuth misconfigurations)?
+
+Testing APIs involves checking for vulnerabilities related to **authentication, authorization, input validation, and token handling**. 
+Below is a concise breakdown of how to approach API testing, including **OAuth-specific issues**.
+
+---
+
+## 🧪 General API Security Testing Approach
+
+| Step                                   | Description                                                                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **1. Enumerate Endpoints**             | Use tools like **Burp Suite**, **Postman**, **OWASP ZAP**, or **API documentation** (Swagger/OpenAPI) to find all endpoints. |
+| **2. Check Authentication**            | Does the API require authentication? Try accessing without tokens or with expired/forged ones.                               |
+| **3. Test Authorization**              | Check if users can access or modify resources they shouldn't (e.g., IDOR).                                                   |
+| **4. Validate Input Handling**         | Test for injections (SQLi, XSS, command injection) in query params, headers, JSON, etc.                                      |
+| **5. Review Rate Limiting**            | Try brute force login or enumeration attacks — check if throttling or CAPTCHA is in place.                                   |
+| **6. Inspect Sensitive Data Exposure** | Look for sensitive fields (SSNs, passwords, tokens) in responses or logs.                                                    |
+| **7. Assess Error Messages**           | Misconfigured APIs often leak stack traces or debug info in responses.                                                       |
+
+---
+
+## 🔐 Testing for **OAuth Misconfigurations**
+
+OAuth 2.0 is widely used for delegated access, but it’s **easily misconfigured**. Here's how to test it:
+
+| Check                               | Description                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| **Token Leakage**                   | Are access tokens exposed in URL fragments, logs, or referrer headers?                  |
+| **Weak Redirect URI Validation**    | Try redirect URI manipulation (e.g., `redirect_uri=https://attacker.com`).              |
+| **Open Redirects in OAuth Flow**    | Can `redirect_uri` be used to redirect users to a malicious site?                       |
+| **Scope Manipulation**              | Request more privileged scopes like `admin`, `read:all` and observe if they're granted. |
+| **ID Token Forgery (OIDC)**         | Try tampering with ID tokens if JWT is used (`alg=none`, weak secrets).                 |
+| **CSRF in Authorization Code Flow** | If `state` parameter is missing or predictable, CSRF is possible.                       |
+| **Improper Token Validation**       | Check if access tokens are expired, not validated, or not bound to client.              |
+
+---
+
+## 🛠️ Tools to Use
+
+| Tool                                  | Purpose                                          |
+| ------------------------------------- | ------------------------------------------------ |
+| 🔍 **Postman**                        | Manual API exploration and token testing         |
+| 🛠️ **Burp Suite**                    | Intercept, fuzz, and modify API requests         |
+| ⚔️ **JWT Tool / jwt.io**              | Token analysis and exploitation                  |
+| 📖 **Amass, Sublist3r**               | API endpoint discovery via subdomain enumeration |
+| 🔐 **Owasp ZAP API Scanner**          | Passive and active scanning of OpenAPI specs     |
+| 🧪 **Auth Analyzer (Burp Extension)** | Detects OAuth-related flaws                      |
+
+---
+
+## 🧠 Real-World Scenarios to Simulate
+
+* **Use another user’s token** to try accessing their data (IDOR).
+* **Modify token scopes or roles** and see if they're honored.
+* **Replay expired or intercepted tokens**.
+* **Use unregistered redirect URIs** to intercept auth codes.
+* **Send malformed JSON/XML payloads** to fuzz backend logic.
+
+---
+
+## ✅ Summary
+
+> Testing APIs (especially with OAuth) means **validating every step of the auth flow**, checking **token handling**, and **verifying input/output securely**. 
+Misconfigurations can lead to **account takeovers**, **data leaks**, and **unauthorized actions**.
 
 --
 
@@ -2107,7 +2494,70 @@ This helps preserve trust while still delivering high-quality work.
 > I see pressure as part of what makes the job exciting. 
 It sharpens focus, encourages creative thinking under constraints, and has taught me to stay calm and solution-driven even in high-stakes scenarios.
 
+--
+
+7. Post-exploitation Techniques
+
+7.1 What are some common post-exploitation techniques? (e.g., Mimikatz, BloodHound, C2 frameworks)
+
+Post-exploitation is the phase after gaining access to a target system, where you **explore**, **escalate**, **pivot**, or **maintain access**. Here are some common post-exploitation techniques, tools, and purposes:
+
+---
+
+## 🧠 **Common Post-Exploitation Techniques**
+
+| Category                      | Technique / Tool                                      | Purpose                                           |
+| ----------------------------- | ----------------------------------------------------- | ------------------------------------------------- |
+| 🧑‍💻 **Credential Dumping**  | `Mimikatz`, `lsass dump`, `hashdump`                  | Extract passwords, hashes, tokens                 |
+| 🔐 **Privilege Escalation**   | Kernel exploits, misconfigured services               | Gain SYSTEM/admin/root rights                     |
+| 🧭 **Host Enumeration**       | `whoami`, `ipconfig`, `netstat`, `tasklist`           | Understand host/network context                   |
+| 🏹 **Lateral Movement**       | `PsExec`, `WMI`, RDP, SMB pivoting                    | Move to other systems in network                  |
+| 🎯 **Domain Recon**           | `BloodHound`, `SharpHound`, `ADExplorer`              | Map Active Directory & privilege paths            |
+| 📥 **Persistence**            | Registry keys, scheduled tasks, startup scripts       | Regain access after reboot                        |
+| 🔗 **Command & Control (C2)** | `Cobalt Strike`, `Empire`, `Sliver`, `Metasploit`     | Maintain remote control                           |
+| 🧬 **Data Exfiltration**      | `certutil`, PowerShell, custom scripts                | Extract valuable files, databases                 |
+| 🎭 **Credential Reuse**       | Pass-the-Hash, Pass-the-Ticket, Golden/Silver Tickets | Use extracted credentials to impersonate users    |
+| 🔐 **Token Impersonation**    | `Incognito`, `Tokenvator`                             | Impersonate other users (especially SYSTEM/admin) |
+
+---
+
+## 🔧 **Common Tools by Use Case**
+
+| Tool                 | Use Case                              |
+| -------------------- | ------------------------------------- |
+| **Mimikatz**         | Extract passwords, hashes, tickets    |
+| **BloodHound**       | Active Directory attack paths         |
+| **Cobalt Strike**    | C2 operations, lateral movement       |
+| **Empire**           | PowerShell-based C2                   |
+| **Sliver**           | Modern, Golang C2                     |
+| **SharpHound**       | BloodHound ingestor                   |
+| **LaZagne**          | Dump credentials from apps            |
+| **Rubeus**           | Kerberos ticket attacks               |
+| **Impacket**         | SMB, WMI, PsExec, and other protocols |
+| **WinPEAS/Seatbelt** | Privilege escalation checks           |
+
+---
+
+## 🧪 Example Workflow:
+
+1. **Initial Access:** Get shell on target machine.
+2. **Privilege Escalation:** Use `winPEAS` or kernel exploit to gain admin.
+3. **Credential Dumping:** Run `Mimikatz` to dump credentials.
+4. **AD Mapping:** Use `SharpHound` → BloodHound to analyze attack paths.
+5. **Pivoting:** Use extracted creds with `PsExec` or `WMI` to move laterally.
+6. **Persistence:** Drop backdoor or schedule reverse shell.
+7. **Data Exfiltration:** Zip and exfiltrate target files via covert channel.
+
+---
+
+## ✅ Summary
+
+> Post-exploitation is all about **expanding your foothold, escalating privileges, collecting intelligence, and maintaining access** — while remaining stealthy. 
+The tools you choose depend on the **target environment**, **goal (persistence, pivoting, exfiltration)**, and **defenses in place**.
+
 -
+
+
 
 
 
