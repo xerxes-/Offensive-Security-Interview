@@ -55,6 +55,7 @@ TOC:
    5.9 What is the difference between TCP and UDP scans?
    5.10 How would you identify open services and their versions?
    5.11 What is banner grabbing, and how do you do it?
+   5.12 What is a MITM (Man-in-the-Middle) attack, and how can it be prevented?
 
 6. Behavioral and Situational Questions
    6.1 Describe a scenario in which you uncovered a critical vulnerability. How did you handle it?
@@ -66,6 +67,9 @@ TOC:
 
 7. Post-exploitation Techniques
    7.1 What are some common post-exploitation techniques? (e.g., Mimikatz, BloodHound, C2 frameworks)
+
+8. Practical/Scenario-Based Questions
+   8.1 You find an SQL injection vulnerability during a pentest. What do you do next?
 
 ---
 
@@ -2250,6 +2254,58 @@ print(s.recv(1024))
 > **Banner grabbing** is an early reconnaissance technique used to fingerprint services and identify potential vulnerabilities. 
 You can do it manually (Netcat, Telnet) or automatically (Nmap, WhatWeb, Curl) depending on the protocol.
 
+-
+
+5.12 What is a MITM (Man-in-the-Middle) attack, and how can it be prevented?
+
+### 🕵️ What is a MITM (Man-in-the-Middle) Attack?
+
+A **Man-in-the-Middle (MITM)** attack occurs when an attacker **intercepts, alters, or relays communication** between two parties without their knowledge. 
+The attacker can eavesdrop on data, steal credentials, inject malicious content, or impersonate one of the parties.
+
+---
+
+## 🔓 **How a MITM Attack Works**
+
+* The attacker positions themselves between **Client** and **Server**.
+* They intercept data flowing in either direction (e.g., login info, session cookies).
+* Common techniques:
+
+  * **ARP spoofing** (on LAN)
+  * **DNS spoofing**
+  * **Wi-Fi evil twin access points**
+  * **SSL stripping** (downgrading HTTPS to HTTP)
+  * **Session hijacking**
+
+---
+
+### 🧪 Example: ARP Spoofing MITM
+
+1. Attacker sends fake ARP messages saying "I am the gateway" to the victim.
+2. Victim sends traffic meant for the gateway to the attacker.
+3. Attacker forwards it to the real gateway (acting like a proxy), capturing or modifying the data.
+
+---
+
+## 🔐 **How to Prevent MITM Attacks**
+
+| Defense                                | Description                                                        |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| ✅ **HTTPS Everywhere**                 | Use HTTPS with valid, trusted TLS certificates to encrypt traffic. |
+| ✅ **HSTS (Strict Transport Security)** | Forces browsers to use HTTPS only.                                 |
+| ✅ **Certificate Pinning**              | Ensures the client only trusts a specific certificate.             |
+| ✅ **DNSSEC**                           | Protects DNS responses from tampering.                             |
+| ✅ **Avoid Public Wi-Fi or Use VPN**    | VPN encrypts all traffic, preventing local MITM attacks.           |
+| ✅ **Static ARP Entries (on LAN)**      | Prevents ARP spoofing in sensitive environments.                   |
+| ✅ **Strong Authentication (MFA)**      | Reduces impact even if credentials are stolen.                     |
+
+---
+
+## ✅ Summary
+
+> A **MITM attack** lets attackers spy on or tamper with communication between two parties. 
+It's prevented by using **encryption (TLS), secure configurations**, and being cautious of **network-level threats** like rogue Wi-Fi or ARP spoofing.
+
 --
 
 6. Behavioral and Situational Questions
@@ -2615,7 +2671,119 @@ Post-exploitation is the phase after gaining access to a target system, where yo
 > Post-exploitation is all about **expanding your foothold, escalating privileges, collecting intelligence, and maintaining access** — while remaining stealthy. 
 The tools you choose depend on the **target environment**, **goal (persistence, pivoting, exfiltration)**, and **defenses in place**.
 
+--
+
+8. Practical/Scenario-Based Questions
+
+8.1 You find an SQL injection vulnerability during a pentest. What do you do next?
+
+## 🧭 **Step-by-Step Process After Finding SQL Injection**
+
+### 🔹 1. **Confirm the Vulnerability Safely**
+
+* Use payloads like `' OR '1'='1` or `UNION SELECT NULL, NULL` to confirm the injection.
+* Observe error messages, behavioral changes, or data leaks.
+
+> 🔐 **Non-intrusive testing first** — avoid anything destructive.
+
+---
+
+### 🔹 2. **Identify the Type of SQLi**
+
+* **Error-based**
+* **Union-based**
+* **Blind (Boolean/Time-based)**
+* **Out-of-Band (OOB)**
+
+Each type dictates how deep I can go with enumeration.
+
+---
+
+### 🔹 3. **Fingerprint the Database**
+
+* Try to detect the backend DBMS:
+
+  * MySQL, MSSQL, PostgreSQL, Oracle, etc.
+* Use version-specific payloads or tools like:
+
+  ```bash
+  sqlmap -u "http://target.com/vuln?id=1" --dbms=mysql
+  ```
+
+---
+
+### 🔹 4. **Enumerate the Database (Carefully)**
+
+* Dump database names, table names, and column names if in scope:
+
+  ```bash
+  sqlmap -u "<target>" --dbs
+  sqlmap -u "<target>" -D users --tables
+  sqlmap -u "<target>" -D users -T credentials --columns
+  ```
+
+* Look for sensitive info:
+
+  * Usernames, passwords (hashes), credit cards, internal data
+
+> ⚠️ Only extract **data allowed by the engagement scope**.
+
+---
+
+### 🔹 5. **Assess the Business Impact**
+
+* Could it lead to:
+
+  * **Authentication bypass?**
+  * **Privilege escalation?**
+  * **Full database compromise?**
+  * **Sensitive data exfiltration?**
+
+> This helps prioritize severity (e.g., Critical vs High).
+
+---
+
+### 🔹 6. **Document Everything**
+
+* Include:
+
+  * Vulnerable parameter
+  * Type of injection
+  * Payload used
+  * Risk/impact
+  * Proof of concept (e.g., screenshot or query result)
+* Example:
+
+  ```
+  Vulnerable URL: /product?id=1'
+  Payload: ' UNION SELECT username, password FROM users --
+  ```
+
+---
+
+### 🔹 7. **Report Immediately if Critical**
+
+* If it's **critical (e.g., full DB access, PII exfiltration)**, I **notify the client immediately** before continuing.
+* Follow their incident response protocol if needed.
+
+---
+
+### 🔹 8. **Recommend Fixes**
+
+* Use **parameterized queries / prepared statements**
+* Implement **input validation & allowlisting**
+* Avoid displaying raw SQL errors
+* Apply **least privilege** on the DB user
+
+---
+
+## ✅ Summary
+
+> Once I confirm SQLi, I **classify it, assess impact, document clearly, stay within scope, and alert the client if critical** — 
+always prioritizing **controlled testing** and **ethical responsibility**.
+
 -
+
 
 
 
