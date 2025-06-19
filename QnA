@@ -57,6 +57,7 @@ TOC:
    5.11 What is banner grabbing, and how do you do it?
    5.12 What is a MITM (Man-in-the-Middle) attack, and how can it be prevented?
    5.13 What is the difference between a bind shell and a reverse shell?
+   5.14 Explain DNS Cache Poisoning.
 
 6. Behavioral and Situational Questions
    6.1 Describe a scenario in which you uncovered a critical vulnerability. How did you handle it?
@@ -79,6 +80,7 @@ TOC:
    8.7 You compromised a low-priv shell on a Linux host — how would you try to escalate privileges?
    8.8 Explain how to pivot from a compromised internal machine to the rest of the network.
    8.9 How do you use Nmap for reconnaissance?
+   8.10 How do you handle false positives in your findings?
 
 ---
 
@@ -2362,6 +2364,78 @@ It's prevented by using **encryption (TLS), secure configurations**, and being c
 > * A **reverse shell** makes the **victim connect back** to the attacker.
 > * In the real world, **reverse shells are more common**, especially for bypassing firewalls and NAT.
 
+-
+
+5.14 Explain DNS Cache Poisoning.
+
+### **DNS Cache Poisoning (a.k.a. DNS Spoofing)**
+
+**DNS Cache Poisoning** is a cyberattack where an attacker inserts false DNS records into the DNS resolver's cache, 
+causing users to be redirected to malicious websites instead of legitimate ones.
+
+---
+
+### 🔍 **How DNS Works (Briefly)**
+
+* You type `example.com` in your browser.
+* The DNS resolver looks up the domain to find its IP address.
+* If it doesn't have the IP cached, it queries authoritative DNS servers to resolve it.
+* Once resolved, the IP address is cached for faster access next time.
+
+---
+
+### 💣 **What is DNS Cache Poisoning?**
+
+DNS cache poisoning is when an attacker **injects forged DNS data** into a resolver's cache, 
+so it returns the wrong IP address for a domain. This causes users to unknowingly visit **malicious** or **fake** websites.
+
+---
+
+### 🧠 **Example Scenario**
+
+1. You want to visit `bank.com`.
+2. Your DNS resolver normally returns the real IP: `192.0.2.1`.
+3. An attacker tricks the DNS resolver into caching a fake IP for `bank.com`: `203.0.113.9`.
+4. Now, when you visit `bank.com`, you're actually sent to the attacker’s phishing site.
+
+---
+
+### 🛠️ **Techniques Used in DNS Cache Poisoning**
+
+* **Spoofing DNS Responses**: The attacker floods the DNS resolver with fake responses hoping one matches the resolver’s request (right transaction ID, port, etc.).
+* **Race Condition Exploit**: The attacker sends malicious DNS responses **before** the legitimate one is received.
+* **Compromised or Misconfigured DNS Server**: If the DNS server is vulnerable, attackers can directly alter records.
+
+---
+
+### 🎯 **Impact of DNS Cache Poisoning**
+
+* Redirection to phishing or malware sites
+* Data theft (credentials, personal info)
+* Man-in-the-middle attacks
+* Downtime or reputation damage for targeted domains
+
+---
+
+### 🛡️ **How to Prevent DNS Cache Poisoning**
+
+* **Use DNSSEC**: DNS Security Extensions digitally sign DNS data to verify authenticity.
+* **Randomize source ports and transaction IDs**: Makes guessing harder for attackers.
+* **Limit cache lifetime (TTL)**: Reduces time poisoned entries remain.
+* **Avoid open resolvers**: Only allow trusted clients to query your DNS server.
+* **Patch DNS software**: Regularly update to fix vulnerabilities.
+
+---
+
+### 📌 Summary
+
+| Feature         | Description                                                   |
+| --------------- | ------------------------------------------------------------- |
+| **Attack Type** | Data injection (spoofing)                                     |
+| **Target**      | DNS resolvers and their caches                                |
+| **Goal**        | Redirect users to malicious domains                           |
+| **Defense**     | DNSSEC, source port randomization, patching, config hardening |
+
 --
 
 6. Behavioral and Situational Questions
@@ -3500,5 +3574,93 @@ nmap --script=http-title,http-enum -p 80,443 192.168.1.10
 
 > Nmap is your first go-to for **network reconnaissance**. 
 You can find **live hosts, open ports, services, OS**, and even run **vulnerability scans** — all from one powerful tool.
+
+-
+
+8.10 How do you handle false positives in your findings?
+
+False positives are **alerts or results that suggest a vulnerability exists when it really doesn’t. 
+Handling them well is critical to maintain credibility and avoid wasting time and resources.
+
+---
+
+### 🧭 **Step-by-Step Approach to Handling False Positives**
+
+#### 1. 🔍 **Manual Verification**
+
+* **Don’t trust automated tools blindly.**
+* Reproduce the finding manually.
+
+  * Example: If a scanner says XSS is present, try injecting a basic payload like `"><script>alert(1)</script>` and see if it triggers.
+* Use multiple tools for cross-verification.
+
+#### 2. 📖 **Understand the Context**
+
+* Check application logic or architecture.
+
+  * For example, a scanner may flag a hidden input field as sensitive — but if it’s not used in processing, it might be harmless.
+* Know what’s **normal behavior** vs. **vulnerable behavior**.
+
+#### 3. 📚 **Consult Documentation & Standards**
+
+* Cross-check with:
+
+  * OWASP documentation
+  * CVE entries
+  * Product documentation (for known secure features misflagged)
+
+#### 4. 🧪 **Exploit to Confirm**
+
+* Attempt to exploit the vulnerability in a controlled environment.
+* Example: Try SQL injection and look for **real data leaks**, not just error messages.
+* If exploit fails or leads to benign outcomes, it may be a false positive.
+
+#### 5. 📝 **Document Clearly**
+
+* If it’s a false positive, document:
+
+  * What was flagged
+  * Why it’s not a real issue
+  * How you verified it
+* This helps security teams and clients trust your assessment.
+
+#### 6. 🔁 **Tune Your Tools**
+
+* Update scanner configurations and exclusions.
+* Add signatures to ignore certain patterns next time.
+* Reduce noise in future scans.
+
+---
+
+### 🧠 **Example**
+
+**Finding**: SQL Injection on `search.php?query=abc`
+
+**Scanner says**:
+
+```
+Parameter 'query' is vulnerable.
+```
+
+**You check**:
+
+* Try `' OR '1'='1` — returns same results (no injection)
+* Try time-based payload — no delay
+* Web app uses parameterized queries
+
+✅ **Result**: False Positive
+📝 **Document**: "Scanner flagged `search.php` as vulnerable to SQLi, but manual testing shows input is sanitized and app uses prepared statements."
+
+---
+
+### 🎯 Best Practices
+
+| Action                 | Why It's Important                       |
+| ---------------------- | ---------------------------------------- |
+| Always verify manually | Avoid embarrassing mistakes              |
+| Use multiple tools     | Increases confidence                     |
+| Know your environment  | Reduces misunderstanding of custom logic |
+| Document your process  | Builds trust with stakeholders           |
+| Report false positives | Helps improve tooling and scans          |
 
 --
